@@ -1,24 +1,90 @@
 services:
-  # 1. Ana Uygulama (LibreChat)
+  # 1. Ana Uygulama (Web Servisi)
   - type: web
     name: librechat
     env: docker
+    repo: https://github.com/keremsaltik/librechat-render-deployment # Repoyu belirtmek iyidir
+    region: frankfurt # Frankfurt (Almanya) sunucusunu seçelim
+    plan: free # Ücretsiz planla başlayalım
     image:
-      url: docker.io/keremle/librechat:v0.8.1 # Kendi Docker Hub adın
+      url: docker.io/keremle/librechat:v0.8.1
     healthCheckPath: /
     envVars:
-      - key: HOST
-        value: 0.0.0.0
       - key: PORT
         value: 3080
-      # --- DÜZELTİLMİŞ KISIM ---
+      - key: HOST
+        value: 0.0.0.0
+      - fromGroup: librechat-secrets # Tüm şifreleri tek bir gruptan çekeceğiz
+
+  # 2. MongoDB (Özel Servis)
+  - type: pserv
+    name: mongodb
+    env: docker
+    region: frankfurt
+    plan: free
+    image:
+      url: docker.io/keremle/mongo-librechat:latest
+    disk:
+      name: mongo-data
+      mountPath: /data/db
+      sizeGB: 1
+
+  # 3. RAG API (Özel Servis)
+  - type: pserv
+    name: ragapi
+    env: docker
+    region: frankfurt
+    plan: free
+    image:
+      url: docker.io/keremle/librechat-rag-api:latest
+    envVars:
+      - fromGroup: librechat-secrets
+
+  # 4. MeiliSearch (Özel Servis)
+  - type: pserv
+    name: meilisearch
+    env: docker
+    region: frankfurt
+    plan: free
+    image:
+      url: docker.io/keremle/meilisearch-librechat:v1.12.3
+    disk:
+      name: meili-data
+      mountPath: /meili_data
+      sizeGB: 1
+    envVars:
+      - fromGroup: librechat-secrets
+
+  # 5. VectorDB (Özel Servis)
+  - type: pserv
+    name: vectordb
+    env: docker
+    region: frankfurt
+    plan: free
+    image:
+      url: docker.io/keremle/pgvector-librechat:latest
+    disk:
+      name: pg-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1
+    envVars:
+      - key: POSTGRES_USER
+        value: librechat
+      - key: POSTGRES_DB
+        value: librechat_db
+      - key: POSTGRES_PASSWORD
+        generateValue: true # Şifreyi Render kendi oluştursun
+
+# Tüm gizli bilgileri toplayacağımız grup
+envVarGroups:
+  - name: librechat-secrets
+    envVars:
       - key: MONGO_URI
-        value: mongodb://${mongodb.host}:${mongodb.port}/LibreChat
+        value: mongodb://mongodb:27017/LibreChat
       - key: RAG_API_URL
-        value: http://${rag-api.host}:${rag-api.port}
+        value: http://ragapi:8000
       - key: MEILI_HOST
-        value: http://${meilisearch.host}:${meilisearch.port}
-      # --- GİZLİ BİLGİLER (Bunlar doğruydu, kalıyor) ---
+        value: http://meilisearch:7700
       - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_SEARCH_API_KEY
@@ -27,54 +93,4 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: JWT_REFRESH_SECRET
-        sync: false
-      - key: MEILI_MASTER_KEY
-        sync: false
-      - key: RAG_API_KEY
-        sync: false
-      - key: RAG_OPENAI_API_KEY
-        sync: false
       # ... .env dosyasındaki diğer tüm anahtarlar buraya "sync: false" ile eklenecek
-
-  # 2. MongoDB Veritabanı
-  - type: pserv
-    name: mongodb
-    env: docker
-    image:
-      url: docker.io/keremle/mongo-librechat:latest # Kendi Docker Hub adın
-
-  # 3. RAG API
-  - type: pserv
-    name: rag-api
-    env: docker
-    image:
-      url: docker.io/keremle/librechat-rag-api:latest # Kendi Docker Hub adın
-    envVars:
-      - key: DB_HOST
-        fromService:
-          type: pserv
-          name: vectordb
-          property: host
-      # ... RAG'ın diğer .env ayarları buraya gelecek
-
-  # 4. MeiliSearch
-  - type: pserv
-    name: meilisearch
-    env: docker
-    image:
-      url: docker.io/keremle/meilisearch-librechat:v1.12.3 # Kendi Docker Hub adın
-
-  # 5. VectorDB
-  - type: pserv
-    name: vectordb
-    env: docker
-    image:
-      url: docker.io/keremle/pgvector-librechat:latest # Kendi Docker Hub adın
-    envVars:
-      - key: POSTGRES_USER
-        value: user
-      - key: POSTGRES_PASSWORD
-        generateValue: true # Render şifreyi kendi oluştursun
-      - key: POSTGRES_DB
-        value: vectordb
