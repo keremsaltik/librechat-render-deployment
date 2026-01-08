@@ -1,0 +1,85 @@
+services:
+  # 1. Ana Uygulama (LibreChat)
+  - type: web
+    name: librechat
+    env: docker
+    image:
+      url: docker.io/keremle/librechat:v0.8.1
+    healthCheckPath: /
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 3080 # Render bunu otomatik yönetir ama belirtmek iyidir
+      - key: MONGO_URI
+        fromService:
+          type: pserv
+          name: mongodb
+          property: connectionString
+      - key: RAG_API_URL
+        fromService:
+          type: pserv
+          name: rag-api
+          property: url
+      - key: MEILI_HOST
+        fromService:
+          type: pserv
+          name: meilisearch
+          property: url
+      # --- GİZLİ BİLGİLER (Render Secrets'tan gelecek) ---
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_SEARCH_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # ... .env dosyasındaki diğer tüm anahtarlar buraya "sync: false" ile eklenecek
+
+  # 2. MongoDB Veritabanı
+  - type: pserv
+    name: mongodb
+    env: docker
+    image:
+      url: docker.io/keremle/mongo-librechat:latest
+    disk:
+      name: mongo-data
+      mountPath: /data/db
+      sizeGB: 1
+
+  # 3. RAG API
+  - type: pserv
+    name: rag-api
+    env: docker
+    image:
+      url: docker.io/kullanikeremleciadin/librechat-rag-api:latest
+    envVars:
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: vectordb
+          property: host
+      # ... RAG'ın diğer .env ayarları buraya gelecek
+
+  # 4. MeiliSearch
+  - type: pserv
+    name: meilisearch
+    env: docker
+    image:
+      url: docker.io/keremle/meilisearch-librechat:v1.12.3
+    disk:
+      name: meili-data
+      mountPath: /meili_data
+      sizeGB: 1
+
+  # 5. VectorDB
+  - type: pserv
+    name: vectordb
+    env: docker
+    image:
+      url: docker.io/keremle/pgvector-librechat:latest
+    disk:
+      name: pg-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 1
