@@ -4,7 +4,7 @@ services:
     name: librechat
     env: docker
     region: frankfurt
-    plan: starter # Ücretli plan (Disk için şart)
+    plan: starter
     image:
       url: docker.io/keremle/librechat:v0.8.1
     healthCheckPath: /
@@ -13,22 +13,14 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: 3080
-      # --- DÜZELTİLMİŞ BAĞLANTILAR ---
-      - key: MONGO_URI
-        value: mongodb://${mongodb.host}:${mongodb.port}/LibreChat
-      - key: RAG_API_URL
-        value: http://${ragapi.host}:${ragapi.port}
-      - key: MEILI_HOST
-        value: http://${meilisearch.host}:${meilisearch.port}
-      # --- GİZLİ BİLGİLER ---
       - fromGroup: librechat-secrets
 
-  # 2. MongoDB Veritabanı
+  # 2. MongoDB
   - type: pserv
     name: mongodb
     env: docker
     region: frankfurt
-    plan: starter # Ücretli plan
+    plan: starter
     image:
       url: docker.io/keremle/mongo-librechat:latest
     disk:
@@ -38,10 +30,10 @@ services:
 
   # 3. RAG API
   - type: pserv
-    name: ragapi # İsimleri basitleştirdim
+    name: ragapi
     env: docker
     region: frankfurt
-    plan: starter # Ücretli plan
+    plan: starter
     image:
       url: docker.io/keremle/librechat-rag-api:latest
     envVars:
@@ -52,7 +44,7 @@ services:
     name: meilisearch
     env: docker
     region: frankfurt
-    plan: starter # Ücretli plan
+    plan: starter
     image:
       url: docker.io/keremle/meilisearch-librechat:v1.12.3
     disk:
@@ -67,7 +59,7 @@ services:
     name: vectordb
     env: docker
     region: frankfurt
-    plan: starter # Ücretli plan
+    plan: starter
     image:
       url: docker.io/keremle/pgvector-librechat:latest
     disk:
@@ -82,12 +74,42 @@ services:
       - key: POSTGRES_PASSWORD
         generateValue: true
 
-# Tüm gizli bilgileri toplayacağımız grup
+# --- İŞTE BÜTÜN SİHİR BURADA ---
 envVarGroups:
   - name: librechat-secrets
     envVars:
+      # Bağlantılar
+      - key: MONGO_URI
+        value: mongodb://mongodb:27017/LibreChat
+      - key: RAG_API_URL
+        value: http://ragapi:8000
+      - key: MEILI_HOST
+        value: http://meilisearch:7700
+      - key: DB_HOST # RAG API için
+        value: vectordb
+
+      # Gizli Anahtarlar (Bunları Render'da elle gireceksin)
       - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_SEARCH_API_KEY
         sync: false
-      # ... .env dosyasındaki diğer tüm anahtarlar buraya "sync: false" ile eklenecek
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: MEILI_MASTER_KEY
+        sync: false
+      - key: RAG_API_KEY
+        sync: false
+      - key: RAG_OPENAI_API_KEY
+        sync: false
+      
+      # Diğer .env Ayarları
+      - key: SEARCH_PROVIDER
+        value: google
+      - key: ENDPOINTS
+        value: openAI,assistants
+      - key: ALLOW_PLUGINS # v0.8.1'de bu hala gerekli olabilir
+        value: "true"
