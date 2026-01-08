@@ -110,6 +110,6 @@ envVarGroups:
       - key: SEARCH_PROVIDER
         value: google
       - key: ENDPOINTS
-        value: openAI,assistants
+        value: "openAI,assistants"
       - key: ALLOW_PLUGINS # v0.8.1'de bu hala gerekli olabilir
         value: "true"
