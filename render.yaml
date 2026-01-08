@@ -4,29 +4,21 @@ services:
     name: librechat
     env: docker
     image:
-      url: docker.io/keremle/librechat:v0.8.1
+      url: docker.io/keremle/librechat:v0.8.1 # Kendi Docker Hub adın
     healthCheckPath: /
     envVars:
       - key: HOST
         value: 0.0.0.0
       - key: PORT
-        value: 3080 # Render bunu otomatik yönetir ama belirtmek iyidir
+        value: 3080
+      # --- DÜZELTİLMİŞ KISIM ---
       - key: MONGO_URI
-        fromService:
-          type: pserv
-          name: mongodb
-          property: connectionString
+        value: mongodb://${mongodb.host}:${mongodb.port}/LibreChat
       - key: RAG_API_URL
-        fromService:
-          type: pserv
-          name: rag-api
-          property: url
+        value: http://${rag-api.host}:${rag-api.port}
       - key: MEILI_HOST
-        fromService:
-          type: pserv
-          name: meilisearch
-          property: url
-      # --- GİZLİ BİLGİLER (Render Secrets'tan gelecek) ---
+        value: http://${meilisearch.host}:${meilisearch.port}
+      # --- GİZLİ BİLGİLER (Bunlar doğruydu, kalıyor) ---
       - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_SEARCH_API_KEY
@@ -35,6 +27,14 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: MEILI_MASTER_KEY
+        sync: false
+      - key: RAG_API_KEY
+        sync: false
+      - key: RAG_OPENAI_API_KEY
+        sync: false
       # ... .env dosyasındaki diğer tüm anahtarlar buraya "sync: false" ile eklenecek
 
   # 2. MongoDB Veritabanı
@@ -42,18 +42,14 @@ services:
     name: mongodb
     env: docker
     image:
-      url: docker.io/keremle/mongo-librechat:latest
-    disk:
-      name: mongo-data
-      mountPath: /data/db
-      sizeGB: 1
+      url: docker.io/keremle/mongo-librechat:latest # Kendi Docker Hub adın
 
   # 3. RAG API
   - type: pserv
     name: rag-api
     env: docker
     image:
-      url: docker.io/kullanikeremleciadin/librechat-rag-api:latest
+      url: docker.io/keremle/librechat-rag-api:latest # Kendi Docker Hub adın
     envVars:
       - key: DB_HOST
         fromService:
@@ -67,19 +63,18 @@ services:
     name: meilisearch
     env: docker
     image:
-      url: docker.io/keremle/meilisearch-librechat:v1.12.3
-    disk:
-      name: meili-data
-      mountPath: /meili_data
-      sizeGB: 1
+      url: docker.io/keremle/meilisearch-librechat:v1.12.3 # Kendi Docker Hub adın
 
   # 5. VectorDB
   - type: pserv
     name: vectordb
     env: docker
     image:
-      url: docker.io/keremle/pgvector-librechat:latest
-    disk:
-      name: pg-data
-      mountPath: /var/lib/postgresql/data
-      sizeGB: 1
+      url: docker.io/keremle/pgvector-librechat:latest # Kendi Docker Hub adın
+    envVars:
+      - key: POSTGRES_USER
+        value: user
+      - key: POSTGRES_PASSWORD
+        generateValue: true # Render şifreyi kendi oluştursun
+      - key: POSTGRES_DB
+        value: vectordb
