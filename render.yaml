@@ -3,25 +3,32 @@ services:
   - type: web
     name: librechat
     env: docker
-    repo: https://github.com/keremsaltik/librechat-render-deployment # Repoyu belirtmek iyidir
-    region: frankfurt # Frankfurt (Almanya) sunucusunu seçelim
-    plan: free # Ücretsiz planla başlayalım
+    region: frankfurt
+    plan: starter # Ücretli plan (Disk için şart)
     image:
       url: docker.io/keremle/librechat:v0.8.1
     healthCheckPath: /
     envVars:
-      - key: PORT
-        value: 3080
       - key: HOST
         value: 0.0.0.0
-      - fromGroup: librechat-secrets # Tüm şifreleri tek bir gruptan çekeceğiz
+      - key: PORT
+        value: 3080
+      # --- DÜZELTİLMİŞ BAĞLANTILAR ---
+      - key: MONGO_URI
+        value: mongodb://${mongodb.host}:${mongodb.port}/LibreChat
+      - key: RAG_API_URL
+        value: http://${ragapi.host}:${ragapi.port}
+      - key: MEILI_HOST
+        value: http://${meilisearch.host}:${meilisearch.port}
+      # --- GİZLİ BİLGİLER ---
+      - fromGroup: librechat-secrets
 
-  # 2. MongoDB (Özel Servis)
+  # 2. MongoDB Veritabanı
   - type: pserv
     name: mongodb
     env: docker
     region: frankfurt
-    plan: free
+    plan: starter # Ücretli plan
     image:
       url: docker.io/keremle/mongo-librechat:latest
     disk:
@@ -29,23 +36,23 @@ services:
       mountPath: /data/db
       sizeGB: 1
 
-  # 3. RAG API (Özel Servis)
+  # 3. RAG API
   - type: pserv
-    name: ragapi
+    name: ragapi # İsimleri basitleştirdim
     env: docker
     region: frankfurt
-    plan: free
+    plan: starter # Ücretli plan
     image:
       url: docker.io/keremle/librechat-rag-api:latest
     envVars:
       - fromGroup: librechat-secrets
 
-  # 4. MeiliSearch (Özel Servis)
+  # 4. MeiliSearch
   - type: pserv
     name: meilisearch
     env: docker
     region: frankfurt
-    plan: free
+    plan: starter # Ücretli plan
     image:
       url: docker.io/keremle/meilisearch-librechat:v1.12.3
     disk:
@@ -55,12 +62,12 @@ services:
     envVars:
       - fromGroup: librechat-secrets
 
-  # 5. VectorDB (Özel Servis)
+  # 5. VectorDB
   - type: pserv
     name: vectordb
     env: docker
     region: frankfurt
-    plan: free
+    plan: starter # Ücretli plan
     image:
       url: docker.io/keremle/pgvector-librechat:latest
     disk:
@@ -73,24 +80,14 @@ services:
       - key: POSTGRES_DB
         value: librechat_db
       - key: POSTGRES_PASSWORD
-        generateValue: true # Şifreyi Render kendi oluştursun
+        generateValue: true
 
 # Tüm gizli bilgileri toplayacağımız grup
 envVarGroups:
   - name: librechat-secrets
     envVars:
-      - key: MONGO_URI
-        value: mongodb://mongodb:27017/LibreChat
-      - key: RAG_API_URL
-        value: http://ragapi:8000
-      - key: MEILI_HOST
-        value: http://meilisearch:7700
       - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_SEARCH_API_KEY
-        sync: false
-      - key: GOOGLE_CSE_ID
-        sync: false
-      - key: JWT_SECRET
         sync: false
       # ... .env dosyasındaki diğer tüm anahtarlar buraya "sync: false" ile eklenecek
